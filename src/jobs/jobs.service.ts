@@ -30,50 +30,55 @@ export class JobsService {
 
     return this.jobsRepository.save(job);
   }
-
   async findAll(filters: {
     searchTerm?: string;
     location?: string;
     jobType?: string;
     salaryRange?: string;
   }): Promise<Job[]> {
+    console.log('Filters:', filters);
     const query = this.jobsRepository.createQueryBuilder('job');
-
+  
     // Filter by search term
-    if (filters.searchTerm) {
-      query.andWhere('LOWER(job.title) LIKE LOWER(:searchTerm)', {
-        searchTerm: `%${filters.searchTerm}%`,
-      });
-    }
-
-    // Filter by location with case-insensitive match
-    if (filters.location) {
-      query.andWhere('LOWER(TRIM(job.location)) LIKE LOWER(TRIM(:location))', {
-        location: `%${filters.location}%`, // Use LIKE for partial matches
-      });
-    }
-
-    // Filter by job type (Handle spaces, case, and variations)
-    if (filters.jobType) {
+    if (filters.searchTerm?.trim()) {
+      const searchTerm = filters.searchTerm.trim();
       query.andWhere(
-        "LOWER(REPLACE(job.jobType, ' ', '')) = LOWER(REPLACE(:jobType, ' ', ''))",
+        '(LOWER(job.title) LIKE LOWER(:searchTerm) OR LOWER(job.description) LIKE LOWER(:searchTerm))', 
         {
-          jobType: filters.jobType.replace(/\s+/g, ''), // Normalize input job type
-        },
+          searchTerm: `%${searchTerm}%`,
+        }
       );
     }
-
-    if (filters.salaryRange) {
-      const [minSalary, maxSalary] = filters.salaryRange.split(',').map((value) => parseInt(value) * 1000);
-      query.andWhere('job.salaryRange BETWEEN :minSalary AND :maxSalary', {
-        minSalary,
-        maxSalary,
-      });
+  
+    // Filter by location
+  // Filter by location
+// Filter by location
+if (filters.location?.trim()) {
+  const location = filters.location.trim();
+  query.andWhere(
+    'LOWER(TRIM(job.location)) LIKE LOWER(TRIM(:location))',
+    {
+      location: `%${location}%`, // Use LIKE for partial matches
     }
+  );
+}
 
+// Filter by job type
+if (filters.jobType?.trim()) {
+  const jobType = filters.jobType.trim().toLowerCase().replace(/\s+/g, ''); // Normalize input
+  query.andWhere(
+    "LOWER(REPLACE(job.jobType, ' ', '')) = :jobType",
+    {
+      jobType: jobType, // Ensure case-insensitive and space-normalized comparison
+    }
+  );
+}
+   
+    // DEBUG: Log the generated SQL
+    console.log('SQL Query:', query.getQueryAndParameters());
+    
     const jobs = await query.getMany();
-
-
+    console.log('Results:', jobs);
     return jobs;
   }
 }
