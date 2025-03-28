@@ -22,7 +22,6 @@ export class JobsController {
     @Body() createJobDto: CreateJobDto,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<Job> {
-    
     return this.jobsService.create(createJobDto, file);
   }
   @Get()
@@ -32,6 +31,11 @@ export class JobsController {
     @Query('jobType') jobType: string,
     @Query('salaryRange') salaryRange: string,
   ): Promise<Job[]> {
-    return this.jobsService.findAll({ searchTerm, location, jobType, salaryRange });
+    return this.jobsService.findAll({
+      searchTerm,
+      location,
+      jobType,
+      salaryRange,
+    });
   }
 }

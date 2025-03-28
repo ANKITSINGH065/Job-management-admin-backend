@@ -18,16 +18,16 @@ export class JobsService {
     file: Express.Multer.File,
   ): Promise<Job> {
     const applicationDeadline = new Date(createJobDto.applicationDeadline);
-  
+
     const job = new Job();
     Object.assign(job, createJobDto);
     if (file) {
       job.companyProfilePhoto = await this.cloudinaryService.uploadImage(file);
     }
-  
+
     job.applicationDeadline = applicationDeadline;
     job.createdAt = new Date(); // Manually set the createdAt field
-  
+
     return this.jobsRepository.save(job);
   }
 
@@ -39,23 +39,41 @@ export class JobsService {
   }): Promise<Job[]> {
     const query = this.jobsRepository.createQueryBuilder('job');
 
+    // Filter by search term
     if (filters.searchTerm) {
-      query.andWhere('job.title ILIKE :searchTerm', { searchTerm: `%${filters.searchTerm}%` });
+      query.andWhere('LOWER(job.title) LIKE LOWER(:searchTerm)', {
+        searchTerm: `%${filters.searchTerm}%`,
+      });
     }
 
+    // Filter by location with case-insensitive match
     if (filters.location) {
-      query.andWhere('job.location = :location', { location: filters.location });
+      query.andWhere('LOWER(TRIM(job.location)) LIKE LOWER(TRIM(:location))', {
+        location: `%${filters.location}%`, // Use LIKE for partial matches
+      });
     }
 
+    // Filter by job type (Handle spaces, case, and variations)
     if (filters.jobType) {
-      query.andWhere('job.jobType = :jobType', { jobType: filters.jobType });
+      query.andWhere(
+        "LOWER(REPLACE(job.jobType, ' ', '')) = LOWER(REPLACE(:jobType, ' ', ''))",
+        {
+          jobType: filters.jobType.replace(/\s+/g, ''), // Normalize input job type
+        },
+      );
     }
 
     if (filters.salaryRange) {
-      const [minSalary, maxSalary] = filters.salaryRange.split(',').map(Number);
-      query.andWhere('job.salaryRange BETWEEN :minSalary AND :maxSalary', { minSalary, maxSalary });
+      const [minSalary, maxSalary] = filters.salaryRange.split(',').map((value) => parseInt(value) * 1000);
+      query.andWhere('job.salaryRange BETWEEN :minSalary AND :maxSalary', {
+        minSalary,
+        maxSalary,
+      });
     }
 
-    return query.getMany();
+    const jobs = await query.getMany();
+
+
+    return jobs;
   }
 }
